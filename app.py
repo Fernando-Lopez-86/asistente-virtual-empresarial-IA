@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from PyPDF2 import PdfReader
 import docx
+import pandas as pd
 
 
 def extract_text_pdf(file_path):
@@ -13,13 +14,19 @@ def extract_text_pdf(file_path):
             text += page.extract_text()
     return text
 
-def extract_text_doc(file_path):
+def extract_text_word(file_path):
     doc = docx.Document(file_path)
     text = '\n'.join([para.text for para in doc.paragraphs])
     return text
 
+def extract_text_excel(file_path):
+    xls = pd.read_excel(file_path)
+    text = xls.to_string(index=False)
+    return text
+
+
 # Carpeta donde almacenamos los documentos de la empresa
-uploaded_files = "data/files/"
+uploaded_files = "data/files/"   # Quitar ruta hardcodeada - Revisar
 if not os.path.exists(uploaded_files):
     os.makedirs(uploaded_files)
 
@@ -27,7 +34,7 @@ if not os.path.exists(uploaded_files):
 st.sidebar.title("Subir Archivos")
 uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx', 'xlsx'])
 
-# Almacena el documento subido en la carpeta data/files
+# Guarda el documento subido en la carpeta data/files, y despues lo procesa dependiendo del tipo de archivo
 if uploaded_file:
     file_path = os.path.join(uploaded_files, uploaded_file.name)
     with open(file_path, 'wb') as f:
@@ -36,8 +43,10 @@ if uploaded_file:
     # Procesar el archivo pdf subido para crear los embeddings - Revisar tipo de archivos OJO!!
     if uploaded_file.type == "application/pdf":
         text = extract_text_pdf(file_path)
-    elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        text = extract_text_doc(file_path)
+    elif uploaded_file.type == "application/doc":
+        text = extract_text_word(file_path)
+    elif uploaded_file.type == "application/xls":
+        text = extract_text_excel(file_path)
 
     st.sidebar.success("Archivo subido y procesado correctamente.")
 
