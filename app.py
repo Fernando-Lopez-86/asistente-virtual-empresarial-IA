@@ -1,5 +1,16 @@
 import streamlit as st
 import os
+from PyPDF2 import PdfReader
+
+
+def extract_text_pdf(file_path):
+    with open(file_path, 'rb') as f:
+        pdf = PdfReader(f)
+        text = ''
+        for page_num in range(len(pdf.pages)):
+            page = pdf.pages[page_num]
+            text += page.extract_text()
+    return text
 
 # Carpeta donde almacenamos los documentos de la empresa
 uploaded_files = "data/files/"
@@ -10,10 +21,15 @@ if not os.path.exists(uploaded_files):
 st.sidebar.title("Subir Archivos")
 uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx', 'xlsx'])
 
+# Almacena el documento subido en la carpeta data/files
 if uploaded_file:
     file_path = os.path.join(uploaded_files, uploaded_file.name)
     with open(file_path, 'wb') as f:
         f.write(uploaded_file.getbuffer())
+
+    # Procesar el archivo pdf subido para crear los embeddings - Revisar tipo de archivos OJO!!
+    if uploaded_file.type == "application/pdf":
+        text = extract_text_pdf(file_path)
 
     st.sidebar.success("Archivo subido y procesado correctamente.")
 
