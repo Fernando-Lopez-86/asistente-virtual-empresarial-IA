@@ -8,6 +8,8 @@ import re
 import openpyxl
 import tiktoken
 import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
 
 # Cargar el modelo de spaCy para español 
 # Descargar el modelo de lenguaje español
@@ -15,7 +17,8 @@ import numpy as np
 ## nlp = spacy.load('es_core_news_sm')
 
 # Inicializar el tokenizador para el modelo GPT-4
-enc = tiktoken.get_encoding("p50k_base")
+#enc = tiktoken.get_encoding("cl100k_base")
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Carpeta donde almacenamos los documentos de la empresa
 uploaded_files = "data/files/"   # Quitar ruta hardcodeada - Revisar
@@ -49,6 +52,7 @@ def clean_text(text):
 
 # Creacion de tokens - 2 opciones: con el modulo spacy o con el modulo tiktoken propio de openia
 # Creacion de embeddings - 2 opciones: con el modulo numpy o con el endpoint de openia
+# Se reemplaza tiktoken por el modelo sentence-transformers de Hugging Face, tokeniza y crea los embeddins en el mismo paso
 def create_embeddings(text):
 
     # doc = nlp(text)
@@ -61,16 +65,25 @@ def create_embeddings(text):
     # embeddings = response['data'][0]['embedding']
     # return np.array(embeddings, dtype=np.float32).reshape(1, -1)
 
-    tokens = enc.encode(text)
-    decoded_tokens = [enc.decode([token]) for token in tokens]
-    grouped_tokens = [enc.decode(tokens[i:i+10]) for i in range(0, len(tokens), 10)]     # Agrupar tokens para mostrar mejor
+    #tokens = enc.encode(text)
+    #decoded_tokens = [enc.decode([token]) for token in tokens]
+    #grouped_tokens = [enc.decode(tokens[i:i+10]) for i in range(0, len(tokens), 10)]     # Agrupar tokens para mostrar mejor
     print("Texto:", text.strip())
-    print("Tokens:", tokens)
-    print("Tokens decode:", decoded_tokens)
-    print("Tokens agrupados:", grouped_tokens)
-    print("Embeddings:", np.array(tokens, dtype=np.float32).reshape(1, -1))
-    return np.array(tokens, dtype=np.float32).reshape(1, -1)
+    #print("Tokens:", tokens)
+    #print("Tokens decode:", decoded_tokens)
+    #print("Tokens agrupados:", grouped_tokens)
+    #print("Embeddings:", np.array(tokens, dtype=np.float32).reshape(1, -1))
+    embeddings = model.encode(text)
+    print("Embeddings:", embeddings)
+    print("Embeddings Numpt:", np.array(embeddings, dtype=np.float32).reshape(1, -1))
+    return np.array(embeddings, dtype=np.float32).reshape(1, -1)
 
+# Inicializar FAISS
+dimension = 384  # Dimensión de los embeddings, ajusta según sea necesario
+index = faiss.IndexFlatL2(dimension)
+faiss_index_path = 'data/faiss_index.index'
+if os.path.exists(faiss_index_path):
+    index = faiss.read_index(faiss_index_path)
 
 
 # Barra lateral de Streamlit para subir y listar los documentos
@@ -97,6 +110,8 @@ if uploaded_file:
     if text:
         text = clean_text(text)
         embeddings = create_embeddings(text)
+        index.add(embeddings)
+        faiss.write_index(index, faiss_index_path)
 
     st.sidebar.success("Archivo subido y procesado correctamente.")
 

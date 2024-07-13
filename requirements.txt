@@ -5,3 +5,5 @@ spacy
 pymupdf
 tiktoken
 numpy
+faiss-cpu
+sentence-transformers
