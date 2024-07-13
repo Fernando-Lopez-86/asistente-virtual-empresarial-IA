@@ -38,6 +38,10 @@ else:
     metadata = {}
 
 
+# Estructura para almacenar los detalles de los documentos subidos
+document_details = []
+
+
 def extract_text_pdf(file_path):
     text = ''
     with fitz.open(file_path) as pdf:
@@ -124,6 +128,8 @@ if uploaded_file:
     if text:
         text = clean_text(text)
         embeddings = create_embeddings(text)
+        # if embeddings.shape[0] == len(text.split()):
+        #     embeddings = embeddings.reshape(len(text.split()), -1)
         index.add(embeddings)
         faiss.write_index(index, faiss_index_path)
 
@@ -131,12 +137,14 @@ if uploaded_file:
         metadata[file_id] = {
             'file_name': uploaded_file.name,
             'embedding_start_idx': index.ntotal - 1,
-            'embedding_end_idx': index.ntotal
+            'embedding_end_idx': index.ntotal,
+            'text': text 
         }
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f)
 
-    st.sidebar.success("Archivo subido y procesado correctamente.")
+        st.sidebar.success("Archivo subido y procesado correctamente.")
+
 
 # Campo de texto para realizar preguntas
 st.title("Asistente Virtual Empresarial IA")
@@ -144,3 +152,29 @@ query = st.text_input("Pregunta:")
 
 if st.button("Buscar"):
     st.write(f"Buscando resultados para: {query}")
+
+
+# Función para mostrar los embeddings almacenados en FAISS
+def mostrar_embeddings():
+    embeddings_list = []
+    for file_id, file_info in metadata.items():
+        start_idx = file_info['embedding_start_idx']
+        end_idx = file_info['embedding_end_idx']
+        embeddings = index.reconstruct_n(start_idx, end_idx - start_idx)
+        for idx, embedding in enumerate(embeddings):
+            embeddings_list.append({
+                'Fila': start_idx + idx,
+                'ID/Nombre del Documento': file_info['file_name'],
+                'Vector': embedding.tolist(),
+                'Texto': file_info.get('text', 'N/A')  
+            })
+    return embeddings_list
+
+# Mostrar detalles de los documentos subidos y sus embeddings
+embeddings_list = mostrar_embeddings()
+if embeddings_list:
+    for doc in embeddings_list:
+        st.write(f"**Nombre del Documento:** {doc['ID/Nombre del Documento']}")
+        st.write(f"**Texto:** {doc['Texto']}")
+        st.write(f"**Embeddings:** {doc['Vector']}")
+        st.write("---")
