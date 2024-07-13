@@ -10,6 +10,8 @@ import tiktoken
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
+import uuid
+import json
 
 # Cargar el modelo de spaCy para español 
 # Descargar el modelo de lenguaje español
@@ -20,10 +22,21 @@ from sentence_transformers import SentenceTransformer
 #enc = tiktoken.get_encoding("cl100k_base")
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
+
 # Carpeta donde almacenamos los documentos de la empresa
 uploaded_files = "data/files/"   # Quitar ruta hardcodeada - Revisar
 if not os.path.exists(uploaded_files):
     os.makedirs(uploaded_files)
+
+
+# Archivo donde almacenamos los metadatos de los documentos
+metadata_file = 'data/metadata.json'
+if os.path.exists(metadata_file):
+    with open(metadata_file, 'r') as f:
+        metadata = json.load(f)
+else:
+    metadata = {}
+
 
 def extract_text_pdf(file_path):
     text = ''
@@ -92,6 +105,7 @@ uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx'
 
 # Guarda el documento subido en la carpeta data/files, y despues lo procesa dependiendo del tipo de archivo
 if uploaded_file:
+    file_id = str(uuid.uuid4())
     file_path = os.path.join(uploaded_files, uploaded_file.name)
     with open(file_path, 'wb') as f:
         f.write(uploaded_file.getbuffer())
@@ -112,6 +126,15 @@ if uploaded_file:
         embeddings = create_embeddings(text)
         index.add(embeddings)
         faiss.write_index(index, faiss_index_path)
+
+        # Guardar metadatos del documento
+        metadata[file_id] = {
+            'file_name': uploaded_file.name,
+            'embedding_start_idx': index.ntotal - 1,
+            'embedding_end_idx': index.ntotal
+        }
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f)
 
     st.sidebar.success("Archivo subido y procesado correctamente.")
 
