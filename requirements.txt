@@ -4,3 +4,4 @@ pandas
 spacy
 pymupdf
 tiktoken
+numpy

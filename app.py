@@ -7,6 +7,7 @@ import fitz  # PyMuPDF
 import re
 import openpyxl
 import tiktoken
+import numpy as np
 
 # Cargar el modelo de spaCy para español 
 # Descargar el modelo de lenguaje español
@@ -15,6 +16,11 @@ import tiktoken
 
 # Inicializar el tokenizador para el modelo GPT-4
 enc = tiktoken.get_encoding("p50k_base")
+
+# Carpeta donde almacenamos los documentos de la empresa
+uploaded_files = "data/files/"   # Quitar ruta hardcodeada - Revisar
+if not os.path.exists(uploaded_files):
+    os.makedirs(uploaded_files)
 
 def extract_text_pdf(file_path):
     text = ''
@@ -42,29 +48,30 @@ def clean_text(text):
     return text
 
 # Creacion de tokens - 2 opciones: con el modulo spacy o con el modulo tiktoken propio de openia
-def create_tokens(text):
-    ## doc = nlp(text)
-    ## tokens_normalizados = []
+# Creacion de embeddings - 2 opciones: con el modulo numpy o con el endpoint de openia
+def create_embeddings(text):
 
-    ## for token in doc:
-        ## if not token.is_stop and not token.is_punct and token.text.strip():
-            ## tokens_normalizados.append(token.lemma_)
+    # doc = nlp(text)
+    # tokens_normalizados = []
+    # for token in doc:
+        # if not token.is_stop and not token.is_punct and token.text.strip():
+            # tokens_normalizados.append(token.lemma_)
+
+    # response = openai.Embedding.create(input=text, model="text-embedding-ada-002")
+    # embeddings = response['data'][0]['embedding']
+    # return np.array(embeddings, dtype=np.float32).reshape(1, -1)
+
     tokens = enc.encode(text)
     decoded_tokens = [enc.decode([token]) for token in tokens]
-    # Agrupar tokens para mostrar mejor
-    grouped_tokens = [enc.decode(tokens[i:i+10]) for i in range(0, len(tokens), 10)]
+    grouped_tokens = [enc.decode(tokens[i:i+10]) for i in range(0, len(tokens), 10)]     # Agrupar tokens para mostrar mejor
     print("Texto:", text.strip())
-    ## print("Tokens normalizados:", tokens_normalizados)
-    ## return tokens_normalizados
     print("Tokens:", tokens)
     print("Tokens decode:", decoded_tokens)
     print("Tokens agrupados:", grouped_tokens)
-    return tokens
+    print("Embeddings:", np.array(tokens, dtype=np.float32).reshape(1, -1))
+    return np.array(tokens, dtype=np.float32).reshape(1, -1)
 
-# Carpeta donde almacenamos los documentos de la empresa
-uploaded_files = "data/files/"   # Quitar ruta hardcodeada - Revisar
-if not os.path.exists(uploaded_files):
-    os.makedirs(uploaded_files)
+
 
 # Barra lateral de Streamlit para subir y listar los documentos
 st.sidebar.title("Subir Archivos")
@@ -89,7 +96,7 @@ if uploaded_file:
 
     if text:
         text = clean_text(text)
-        tokens = create_tokens(text)
+        embeddings = create_embeddings(text)
 
     st.sidebar.success("Archivo subido y procesado correctamente.")
 
