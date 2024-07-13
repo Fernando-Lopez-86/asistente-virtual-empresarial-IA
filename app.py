@@ -2,15 +2,19 @@ import streamlit as st
 import os
 import docx
 import pandas as pd
-import spacy
+## import spacy
 import fitz  # PyMuPDF
 import re
 import openpyxl
+import tiktoken
 
 # Cargar el modelo de spaCy para español 
 # Descargar el modelo de lenguaje español
 # !python -m spacy download es_core_news_sm - VER INSTALACION EN SCRIPT O ALTERNATIVA
-nlp = spacy.load('es_core_news_sm')
+## nlp = spacy.load('es_core_news_sm')
+
+# Inicializar el tokenizador para el modelo GPT-4
+enc = tiktoken.get_encoding("p50k_base")
 
 def extract_text_pdf(file_path):
     text = ''
@@ -37,18 +41,25 @@ def clean_text(text):
     text = text.strip()
     return text
 
-# Creacion de tokens
+# Creacion de tokens - 2 opciones: con el modulo spacy o con el modulo tiktoken propio de openia
 def create_tokens(text):
-    doc = nlp(text)
-    tokens_normalizados = []
+    ## doc = nlp(text)
+    ## tokens_normalizados = []
 
-    for token in doc:
-        if not token.is_stop and not token.is_punct and token.text.strip():
-            tokens_normalizados.append(token.lemma_)
-
+    ## for token in doc:
+        ## if not token.is_stop and not token.is_punct and token.text.strip():
+            ## tokens_normalizados.append(token.lemma_)
+    tokens = enc.encode(text)
+    decoded_tokens = [enc.decode([token]) for token in tokens]
+    # Agrupar tokens para mostrar mejor
+    grouped_tokens = [enc.decode(tokens[i:i+10]) for i in range(0, len(tokens), 10)]
     print("Texto:", text.strip())
-    print("Tokens normalizados:", tokens_normalizados)
-    return tokens_normalizados
+    ## print("Tokens normalizados:", tokens_normalizados)
+    ## return tokens_normalizados
+    print("Tokens:", tokens)
+    print("Tokens decode:", decoded_tokens)
+    print("Tokens agrupados:", grouped_tokens)
+    return tokens
 
 # Carpeta donde almacenamos los documentos de la empresa
 uploaded_files = "data/files/"   # Quitar ruta hardcodeada - Revisar
