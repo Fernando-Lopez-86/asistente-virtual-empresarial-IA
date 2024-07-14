@@ -102,6 +102,7 @@ def create_embeddings(text):
     #print("Tokens decode:", decoded_tokens)
     #print("Tokens agrupados:", grouped_tokens)
     #print("Embeddings:", np.array(tokens, dtype=np.float32).reshape(1, -1))
+    #tokens = enc.encode(text)  # para probar tokenizar con tiktoken previo a enviarle el texto sentence-transformer
     embeddings = model.encode(text)
     print("Embeddings:", embeddings)
     print("Embeddings Numpt:", np.array(embeddings, dtype=np.float32).reshape(1, -1))
@@ -177,10 +178,27 @@ def search_embeddings(query):
     return indices
 
 
+# Se obtienen los embeddings de la base de datos FAISS que mas se asemejan con los embeddings de la pregunta
+def get_relevant_texts(indices):
+    texts = []
+    for idx in indices[0]:
+        for file_id, file_info in metadata.items():
+            start_idx = file_info['embedding_start_idx']
+            end_idx = file_info['embedding_end_idx']
+            if start_idx <= idx < end_idx:
+                texts.append(file_info['text'])
+                break
+    return texts
+
+# El texto de la busqueda se convierte a embeddings
+# Se envian los embeddings de la pregunta para comparar y obtener los embeddings de la base de datos que mas cerca estan o que mas se parecen
+# Se obtienen los embeddings de la base de datos FAISS que mas se asemejan con los embeddings de la pregunta
+# Se envian los embeddings filtrados al endpoint de OpenIA para obtener una respuesta "bonita"
+# El API de OpenIA responde en base al contecto de embeddings que le enviamos
 if st.button("Buscar"):
     indices = search_embeddings(query)
-    st.write(f"Indices de los documentos importantes relacionados con la busqueda: {indices}")
-
+    relevant_texts = get_relevant_texts(indices)
+    context = "\n".join(relevant_texts)
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -204,7 +222,6 @@ def mostrar_embeddings():
         embeddings = index.reconstruct_n(start_idx, end_idx - start_idx)
         for idx, embedding in enumerate(embeddings):
             embeddings_list.append({
-                'Fila': start_idx + idx,
                 'ID/Nombre del Documento': file_info['file_name'],
                 'Vector': embedding.tolist(),
                 'Texto': file_info.get('text', 'N/A')  
