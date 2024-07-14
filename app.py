@@ -13,7 +13,17 @@ from sentence_transformers import SentenceTransformer
 import uuid
 import json
 from openai import OpenAI
+from dotenv import load_dotenv
 
+# Cargar las variables de entorno desde el archivo .env
+load_dotenv()
+
+# Obtener la API key desde las variables de entorno
+api_key = os.getenv('OPENAI_API_KEY')
+
+client = OpenAI(
+    api_key=api_key,
+)
 
 # Cargar el modelo de spaCy para español 
 # Descargar el modelo de lenguaje español
@@ -23,10 +33,6 @@ from openai import OpenAI
 # Inicializar el tokenizador para el modelo GPT-4
 #enc = tiktoken.get_encoding("cl100k_base")
 model = SentenceTransformer('all-MiniLM-L6-v2')
-
-client = OpenAI(
-    api_key='',
-)
 
 
 # Carpeta donde almacenamos los documentos de la empresa
