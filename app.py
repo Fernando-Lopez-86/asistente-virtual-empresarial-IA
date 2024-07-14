@@ -12,6 +12,8 @@ import faiss
 from sentence_transformers import SentenceTransformer
 import uuid
 import json
+from openai import OpenAI
+
 
 # Cargar el modelo de spaCy para español 
 # Descargar el modelo de lenguaje español
@@ -21,6 +23,10 @@ import json
 # Inicializar el tokenizador para el modelo GPT-4
 #enc = tiktoken.get_encoding("cl100k_base")
 model = SentenceTransformer('all-MiniLM-L6-v2')
+
+client = OpenAI(
+    api_key='',
+)
 
 
 # Carpeta donde almacenamos los documentos de la empresa
@@ -146,12 +152,41 @@ if uploaded_file:
         st.sidebar.success("Archivo subido y procesado correctamente.")
 
 
+
+
+
 # Campo de texto para realizar preguntas
 st.title("Asistente Virtual Empresarial IA")
 query = st.text_input("Pregunta:")
 
+# if st.button("Buscar"):
+#     st.write(f"Buscando resultados para: {query}")
+
+
+
+
+def search_embeddings(query):
+    query_embeddings = create_embeddings(query)
+    distances, indices = index.search(query_embeddings, k=5)
+    return indices
+
+
 if st.button("Buscar"):
-    st.write(f"Buscando resultados para: {query}")
+    indices = search_embeddings(query)
+    st.write(f"Indices de los documentos importantes relacionados con la busqueda: {indices}")
+
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": f"Contexto: {context}"},
+            {"role": "user", "content": query}
+        ],
+        max_tokens=150
+    )
+    st.write(response.choices[0].message.content.strip())
+
+    
+
 
 
 # Función para mostrar los embeddings almacenados en FAISS
