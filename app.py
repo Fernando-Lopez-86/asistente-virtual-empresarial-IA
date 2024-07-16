@@ -50,8 +50,17 @@ else:
     metadata = {}
 
 
+
+# Inicializar FAISS
+dimension = 384  # Dimensión de los embeddings, ajusta según sea necesario
+index = faiss.IndexFlatL2(dimension)
+faiss_index_path = 'data/faiss_index.index'
+if os.path.exists(faiss_index_path):
+    index = faiss.read_index(faiss_index_path)
+    
+
 # Estructura para almacenar los detalles de los documentos subidos
-document_details = []
+# document_details = []
 
 
 def extract_text_pdf(file_path):
@@ -108,22 +117,31 @@ def create_embeddings(text):
     print("Embeddings Numpt:", np.array(embeddings, dtype=np.float32).reshape(1, -1))
     return np.array(embeddings, dtype=np.float32).reshape(1, -1)
 
-# Inicializar FAISS
-dimension = 384  # Dimensión de los embeddings, ajusta según sea necesario
-index = faiss.IndexFlatL2(dimension)
-faiss_index_path = 'data/faiss_index.index'
-if os.path.exists(faiss_index_path):
-    index = faiss.read_index(faiss_index_path)
+# Inicializar variable de sesión
+if 'uploaded_files' not in st.session_state:
+    st.session_state.uploaded_files = set()
+
+if 'new_files' not in st.session_state:
+    st.session_state.new_files = set()
+
+if 'files_to_delete' not in st.session_state:
+    st.session_state.files_to_delete = set()
+
+if "file_uploader_key" not in st.session_state:
+    st.session_state["file_uploader_key"] = 0
+
 
 
 # Barra lateral de Streamlit para subir y listar los documentos
 st.sidebar.title("Subir Archivos")
-uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx', 'xlsx'])
+uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx', 'xlsx'], key=st.session_state["file_uploader_key"], label_visibility="hidden")
 
 # Guarda el documento subido en la carpeta data/files, y despues lo procesa dependiendo del tipo de archivo
-if uploaded_file:
+# if uploaded_file and uploaded_file.name not in st.session_state.uploaded_files:
+if uploaded_file and uploaded_file.name not in st.session_state.uploaded_files and uploaded_file.name not in st.session_state.new_files:
     file_id = str(uuid.uuid4())
     file_path = os.path.join(uploaded_files, uploaded_file.name)
+
     with open(file_path, 'wb') as f:
         f.write(uploaded_file.getbuffer())
 
@@ -156,7 +174,67 @@ if uploaded_file:
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f)
 
-        st.sidebar.success("Archivo subido y procesado correctamente.")
+        st.session_state.uploaded_files.add(uploaded_file.name)
+        st.session_state.new_files.add(uploaded_file.name)
+        #st.sidebar.success("Archivo subido y procesado correctamente.")
+        st.rerun()
+
+
+
+
+# # Listar documentos subidos
+# st.sidebar.title("Documentos Subidos")
+# for file_id, file_info in metadata.items():
+#     if st.sidebar.button(f"Eliminar {file_info['file_name']}", key=file_id):
+#         # Eliminar embeddings del índice FAISS
+#         start_idx = file_info['embedding_start_idx']
+#         end_idx = file_info['embedding_end_idx']
+#         index.remove_ids(np.arange(start_idx, end_idx, dtype=np.int64))
+#         faiss.write_index(index, faiss_index_path)
+        
+#         # Eliminar metadatos del documento
+#         del metadata[file_id]
+#         with open(metadata_file, 'w') as f:
+#             json.dump(metadata, f)
+        
+#         # Eliminar archivo
+#         os.remove(os.path.join(uploaded_files, file_info['file_name']))
+#         st.session_state.uploaded_files.remove(file_info['file_name'])
+#         if file_info['file_name'] in st.session_state.new_files:
+#             st.session_state.new_files.remove(file_info['file_name'])
+#         st.sidebar.success(f"Archivo {file_info['file_name']} eliminado correctamente.")
+#         st.rerun()
+
+
+# Función para eliminar archivos
+def eliminar_archivo(file_id, file_info):
+    start_idx = file_info['embedding_start_idx']
+    end_idx = file_info['embedding_end_idx']
+    index.remove_ids(np.arange(start_idx, end_idx, dtype=np.int64))
+    faiss.write_index(index, faiss_index_path)
+    
+    del metadata[file_id]
+    with open(metadata_file, 'w') as f:
+        json.dump(metadata, f)
+    
+    os.remove(os.path.join(uploaded_files, file_info['file_name']))
+    if file_info['file_name'] in st.session_state.uploaded_files:
+        st.session_state.uploaded_files.remove(file_info['file_name'])
+    if file_info['file_name'] in st.session_state.new_files:
+        st.session_state.new_files.remove(file_info['file_name'])
+    st.session_state.files_to_delete.add(file_info['file_name'])
+    st.session_state["file_uploader_key"] += 1
+    st.rerun()
+
+st.sidebar.title("Documentos Subidos")
+archivos_a_eliminar = []
+for file_id, file_info in metadata.items():
+    if file_info['file_name'] not in st.session_state.files_to_delete:
+        if st.sidebar.button(f"Eliminar {file_info['file_name']}", key=file_id):
+            archivos_a_eliminar.append((file_id, file_info))
+
+for file_id, file_info in archivos_a_eliminar:
+    eliminar_archivo(file_id, file_info)
 
 
 
