@@ -117,15 +117,14 @@ def create_embeddings(text):
     print("Embeddings Numpt:", np.array(embeddings, dtype=np.float32).reshape(1, -1))
     return np.array(embeddings, dtype=np.float32).reshape(1, -1)
 
-# Inicializar variable de sesión
-if 'uploaded_files' not in st.session_state:
-    st.session_state.uploaded_files = set()
 
-if 'new_files' not in st.session_state:
-    st.session_state.new_files = set()
+# Inicializar variable de sesión para el manejo de eliminacion de documentlos
+if 'uploaded_files' not in st.session_state:
+    # st.session_state.uploaded_files = set()
+    st.session_state["uploaded_files"] = []
 
 if 'files_to_delete' not in st.session_state:
-    st.session_state.files_to_delete = set()
+     st.session_state.files_to_delete = set()
 
 if "file_uploader_key" not in st.session_state:
     st.session_state["file_uploader_key"] = 0
@@ -138,7 +137,7 @@ uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx'
 
 # Guarda el documento subido en la carpeta data/files, y despues lo procesa dependiendo del tipo de archivo
 # if uploaded_file and uploaded_file.name not in st.session_state.uploaded_files:
-if uploaded_file and uploaded_file.name not in st.session_state.uploaded_files and uploaded_file.name not in st.session_state.new_files:
+if uploaded_file and uploaded_file.name not in st.session_state.uploaded_files and uploaded_file.name:
     file_id = str(uuid.uuid4())
     file_path = os.path.join(uploaded_files, uploaded_file.name)
 
@@ -174,36 +173,11 @@ if uploaded_file and uploaded_file.name not in st.session_state.uploaded_files a
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f)
 
-        st.session_state.uploaded_files.add(uploaded_file.name)
-        st.session_state.new_files.add(uploaded_file.name)
+
+        st.session_state["uploaded_files"] = uploaded_file.name
         #st.sidebar.success("Archivo subido y procesado correctamente.")
         st.rerun()
 
-
-
-
-# # Listar documentos subidos
-# st.sidebar.title("Documentos Subidos")
-# for file_id, file_info in metadata.items():
-#     if st.sidebar.button(f"Eliminar {file_info['file_name']}", key=file_id):
-#         # Eliminar embeddings del índice FAISS
-#         start_idx = file_info['embedding_start_idx']
-#         end_idx = file_info['embedding_end_idx']
-#         index.remove_ids(np.arange(start_idx, end_idx, dtype=np.int64))
-#         faiss.write_index(index, faiss_index_path)
-        
-#         # Eliminar metadatos del documento
-#         del metadata[file_id]
-#         with open(metadata_file, 'w') as f:
-#             json.dump(metadata, f)
-        
-#         # Eliminar archivo
-#         os.remove(os.path.join(uploaded_files, file_info['file_name']))
-#         st.session_state.uploaded_files.remove(file_info['file_name'])
-#         if file_info['file_name'] in st.session_state.new_files:
-#             st.session_state.new_files.remove(file_info['file_name'])
-#         st.sidebar.success(f"Archivo {file_info['file_name']} eliminado correctamente.")
-#         st.rerun()
 
 
 # Función para eliminar archivos
@@ -218,11 +192,6 @@ def eliminar_archivo(file_id, file_info):
         json.dump(metadata, f)
     
     os.remove(os.path.join(uploaded_files, file_info['file_name']))
-    if file_info['file_name'] in st.session_state.uploaded_files:
-        st.session_state.uploaded_files.remove(file_info['file_name'])
-    if file_info['file_name'] in st.session_state.new_files:
-        st.session_state.new_files.remove(file_info['file_name'])
-    st.session_state.files_to_delete.add(file_info['file_name'])
     st.session_state["file_uploader_key"] += 1
     st.rerun()
 
@@ -239,14 +208,12 @@ for file_id, file_info in archivos_a_eliminar:
 
 
 
-
 # Campo de texto para realizar preguntas
 st.title("Asistente Virtual Empresarial IA")
 query = st.text_input("Pregunta:")
 
 # if st.button("Buscar"):
 #     st.write(f"Buscando resultados para: {query}")
-
 
 
 
