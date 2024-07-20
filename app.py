@@ -15,6 +15,20 @@ import json
 from openai import OpenAI
 from dotenv import load_dotenv
 
+
+# Ocultar boton Deploy de streamlit
+st.markdown("""
+    <style>
+        .reportview-container {
+            margin-top: -2em;
+        }
+        #MainMenu {visibility: hidden;}
+        .stDeployButton {display:none;}
+        footer {visibility: hidden;}
+        #stDecoration {display:none;}
+    </style>
+""", unsafe_allow_html=True)
+
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
 
@@ -58,9 +72,6 @@ faiss_index_path = 'data/faiss_index.index'
 if os.path.exists(faiss_index_path):
     index = faiss.read_index(faiss_index_path)
     
-
-# Estructura para almacenar los detalles de los documentos subidos
-# document_details = []
 
 
 def extract_text_pdf(file_path):
@@ -195,12 +206,19 @@ def eliminar_archivo(file_id, file_info):
     st.session_state["file_uploader_key"] += 1
     st.rerun()
 
+
+
 st.sidebar.title("Documentos Subidos")
 archivos_a_eliminar = []
 for file_id, file_info in metadata.items():
     if file_info['file_name'] not in st.session_state.files_to_delete:
-        if st.sidebar.button(f"Eliminar {file_info['file_name']}", key=file_id):
+        # if st.sidebar.button(f"Eliminar {file_info['file_name']}", key=file_id):
+        #     archivos_a_eliminar.append((file_id, file_info))
+        col1, col2 = st.sidebar.columns([0.5, 0.5])
+        col1.write(file_info['file_name'])
+        if col2.button('❌', key=file_id):
             archivos_a_eliminar.append((file_id, file_info))
+
 
 for file_id, file_info in archivos_a_eliminar:
     eliminar_archivo(file_id, file_info)
@@ -235,6 +253,15 @@ def get_relevant_texts(indices):
                 break
     return texts
 
+
+def highlight_common_words(context, response):
+    context_words = set(context.split())
+    response_words = response.split()
+    highlighted_response = ' '.join([f"**{word}**" if word in context_words else word for word in response_words])
+    return highlighted_response
+
+
+
 # El texto de la busqueda se convierte a embeddings
 # Se envian los embeddings de la pregunta para comparar y obtener los embeddings de la base de datos que mas cerca estan o que mas se parecen
 # Se obtienen los embeddings de la base de datos FAISS que mas se asemejan con los embeddings de la pregunta
@@ -252,8 +279,20 @@ if st.button("Buscar"):
         ],
         max_tokens=150
     )
-    st.write(response.choices[0].message.content.strip())
+    #st.write(response.choices[0].message.content.strip())
+    raw_response = response.choices[0].message.content.strip()
+    highlighted_response = highlight_common_words(context, raw_response)
+    st.write(highlighted_response, unsafe_allow_html=True)
 
+    # Marcar en negrita las palabras en el texto de los embeddings que coincidan con las palabras de la respuesta
+    response_words = set(raw_response.split())
+    st.title("Detalles de Embeddings")
+    for doc in metadata.values():
+        doc_text = doc.get('text', 'N/A')
+        highlighted_text = ' '.join([f"<b>{word}</b>" if word in response_words else word for word in doc_text.split()])
+        st.markdown(f"**Nombre del Documento:** {doc['file_name']}", unsafe_allow_html=True)
+        st.markdown(f"**Texto:** {highlighted_text}", unsafe_allow_html=True)
+        st.markdown("---")
     
 
 
