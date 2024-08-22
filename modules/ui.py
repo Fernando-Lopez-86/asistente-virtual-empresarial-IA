@@ -1,5 +1,46 @@
 import streamlit as st
 from modules.files import delete_file
+from modules.authentication import login_user
+
+def display_login_form():
+    st.title("Iniciar Sesión")
+    username = st.text_input("Usuario")
+    password = st.text_input("Contraseña", type="password")
+    if st.button("Iniciar Sesión"):
+        user = login_user(username, password)
+        if user:
+            st.success("Login exitoso!")
+            return user
+        else:
+            st.error("Usuario o contraseña incorrectos")
+    return None
+
+def display_app_content():
+    if st.session_state.get('logged_in'):
+        st.sidebar.title("Subir Archivos")
+        uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx', 'xlsx'], key=st.session_state.get("file_uploader_key", 0), label_visibility="hidden")
+
+        from modules.files import handle_file_upload
+        from modules.search import search_and_display_results
+        from modules.embeddings import init_faiss_index
+        from modules.ui import display_uploaded_files, display_embeddings
+
+        index, metadata = init_faiss_index()
+
+        if uploaded_file and uploaded_file.name not in st.session_state.get("uploaded_files", []):
+            handle_file_upload(uploaded_file, index, metadata)
+
+        display_uploaded_files(index, metadata)
+
+        st.title("Asistente Virtual Empresarial IA")
+        query = st.text_input("Pregunta:")
+
+        if st.button("Buscar"):
+            search_and_display_results(query, index, metadata)
+
+        display_embeddings(metadata, index)
+    else:
+        st.write("Debe iniciar sesión para ver el contenido.")
 
 def display_uploaded_files(index, metadata):
     st.sidebar.title("Documentos Subidos")
