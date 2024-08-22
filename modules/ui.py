@@ -1,19 +1,5 @@
 import streamlit as st
 from modules.files import delete_file
-from modules.authentication import login_user
-
-def display_login_form():
-    st.title("Iniciar Sesión")
-    username = st.text_input("Usuario")
-    password = st.text_input("Contraseña", type="password")
-    if st.button("Iniciar Sesión"):
-        user = login_user(username, password)
-        if user:
-            st.success("Login exitoso!")
-            return user
-        else:
-            st.error("Usuario o contraseña incorrectos")
-    return None
 
 def display_app_content():
     if st.session_state.get('logged_in'):
