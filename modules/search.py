@@ -53,7 +53,7 @@ def search_and_display_results(query, index, metadata):
             {"role": "system", "content": f"Contexto: {context}"},
             {"role": "user", "content": query}
         ],
-        max_tokens=150
+        max_tokens=300
     )
     raw_response = response.choices[0].message.content.strip()
     highlighted_response = highlight_common_words(context, raw_response)
