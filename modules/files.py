@@ -36,7 +36,7 @@ def clean_text(text):
     return text
 
 # Funcion para subir archivos
-def handle_file_upload(uploaded_file, index, metadata):
+def handle_file_upload(uploaded_file, index, metadata, category):
     file_id = str(uuid.uuid4())
     file_path = os.path.join("data/files", uploaded_file.name)
 
@@ -62,13 +62,15 @@ def handle_file_upload(uploaded_file, index, metadata):
         'file_name': uploaded_file.name,
         'embedding_start_idx': index.ntotal - 1,
         'embedding_end_idx': index.ntotal,
-        'text': text 
+        'text': text ,
+        'category': category  # Almacenar la categoría seleccionada
     }
     
     with open(metadata_file, 'w') as f:
         json.dump(metadata, f)
 
     st.session_state["uploaded_files"] = uploaded_file.name
+    st.success(f"Archivo {uploaded_file.name} subido exitosamente en la categoría {category}.")
     st.rerun()
 
 def delete_file(file_id, file_info, index, metadata):

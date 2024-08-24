@@ -1,9 +1,41 @@
 import streamlit as st
-from modules.files import delete_file
+from modules.files import delete_file, handle_file_upload
+
+
 
 def display_app_content():
     if st.session_state.get('logged_in'):
         st.sidebar.title("Subir Archivos")
+
+        # Inicializar los checkboxes
+        if 'General' not in st.session_state:
+            st.session_state['General'] = False
+        if 'Administracion' not in st.session_state:
+            st.session_state['Administracion'] = False
+        if 'Produccion' not in st.session_state:
+            st.session_state['Produccion'] = False
+        if 'Laboratorio' not in st.session_state:
+            st.session_state['Laboratorio'] = False
+
+        # Checkbox para cada categoría
+        general = st.sidebar.checkbox('General', key='General')
+        administracion = st.sidebar.checkbox('Administracion', key='Administracion')
+        produccion = st.sidebar.checkbox('Produccion', key='Produccion')
+        laboratorio = st.sidebar.checkbox('Laboratorio', key='Laboratorio')
+        
+
+        # Determinar la categoría seleccionada
+        selected_category = None
+        if general:
+            selected_category = 'General'
+        elif administracion:
+            selected_category = 'Administracion'
+        elif produccion:
+            selected_category = 'Produccion'
+        elif laboratorio:
+            selected_category = 'Laboratorio'
+
+
         uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx', 'xlsx'], key=st.session_state.get("file_uploader_key", 0), label_visibility="hidden")
 
         from modules.files import handle_file_upload
@@ -13,8 +45,26 @@ def display_app_content():
 
         index, metadata = init_faiss_index()
 
-        if uploaded_file and uploaded_file.name not in st.session_state.get("uploaded_files", []):
-            handle_file_upload(uploaded_file, index, metadata)
+        if uploaded_file is not None:
+            if not selected_category:
+                st.sidebar.error("Debe seleccionar una categoría antes de subir el archivo.")
+            else:
+                if uploaded_file and uploaded_file.name not in st.session_state.get("uploaded_files", []):
+                    handle_file_upload(uploaded_file, index, metadata, selected_category)
+                    st.session_state["uploaded_files"].append(uploaded_file.name)
+
+                    # Resetea los checkboxes después de la subida
+                    # reset_checkboxes()
+
+                    # Forzar una actualización del estado sin recargar la página
+                    st.sidebar.checkbox('General', key='General', value=st.session_state['General'])
+                    st.sidebar.checkbox('Administracion', key='Administracion', value=st.session_state['Administracion'])
+                    st.sidebar.checkbox('Produccion', key='Produccion', value=st.session_state['Produccion'])
+                    st.sidebar.checkbox('Laboratorio', key='Laboratorio', value=st.session_state['Laboratorio'])
+
+        
+        # if uploaded_file and uploaded_file.name not in st.session_state.get("uploaded_files", []):
+        #     handle_file_upload(uploaded_file, index, metadata, category)
 
         display_uploaded_files(index, metadata)
 
@@ -24,7 +74,7 @@ def display_app_content():
         if st.button("Buscar"):
             search_and_display_results(query, index, metadata)
 
-        display_embeddings(metadata, index)
+        # display_embeddings(metadata, index)
     else:
         st.write("Debe iniciar sesión para ver el contenido.")
 
@@ -40,6 +90,7 @@ def display_uploaded_files(index, metadata):
     
     for file_id, file_info in files_to_delete:
         delete_file(file_id, file_info, index, metadata)
+
 
 def display_embeddings(metadata, index):
     embeddings_list = []

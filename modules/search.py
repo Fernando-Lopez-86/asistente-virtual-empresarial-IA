@@ -53,9 +53,10 @@ def search_and_display_results(query, index, metadata):
             {"role": "system", "content": f"Contexto: {context}"},
             {"role": "user", "content": query}
         ],
-        max_tokens=300
+        max_tokens=400
     )
     raw_response = response.choices[0].message.content.strip()
-    highlighted_response = highlight_common_words(context, raw_response)
-    st.write(highlighted_response, unsafe_allow_html=True)
-    display_highlighted_text(metadata, raw_response)
+    # highlighted_response = highlight_common_words(context, raw_response)
+    # st.write(highlighted_response, unsafe_allow_html=True)
+    # display_highlighted_text(metadata, raw_response)
+    st.write(raw_response, unsafe_allow_html=True)
