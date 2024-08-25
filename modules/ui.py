@@ -127,10 +127,35 @@ def display_app_content():
 
 
         st.title("🔎 Asistente Virtual Empresarial IA")
-        query = st.text_input("Pregunta:")
+        # Usar markdown para mostrar la etiqueta "Pregunta:" en negrita y más grande
+        # st.markdown('<p style="font-weight: bold; font-size: 1.3em;">Pregunta:</p>', unsafe_allow_html=True)
+        # query = st.text_input("Pregunta:", key="input_query")
+        # Usar markdown para mostrar la etiqueta "Pregunta:" en negrita y más grande
+        # Usar markdown para la etiqueta "Pregunta:" en negrita, más grande y ajustando margen
+        # Usar markdown para la etiqueta "Pregunta:" en negrita y más grande, eliminando márgenes
+        # Inyectar CSS personalizado para eliminar el espacio en blanco
+
+        
+        # Crear el input para la pregunta justo debajo del markdown personalizado
+        query = st.text_input("Pregunta:", key="input_query")
+
+
+        # Crear el combo box para seleccionar el estilo justo arriba del botón "Buscar"
+        style_options = [
+            "Responde de manera formal y profesional.",
+            "Responde con un tono amigable y casual.",
+            "Responde en formato de lista.",
+            "Responde con un toque de humor.",
+            "Responde de manera breve y concisa.",
+            "Responde en inglés.",
+            "Responde de manera detallada y extensa.",
+            "Responde de manera específica y no generalices.",
+        ]
+        
+        selected_style = st.selectbox("Selecciona el estilo de respuesta:", style_options)
 
         if st.button("Buscar"):
-            search_and_display_results(query, index, metadata)
+            search_and_display_results(query, index, metadata, selected_style)
 
         # display_embeddings(metadata, index)
     else:

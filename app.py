@@ -11,18 +11,27 @@ st.set_page_config(page_title="Asistente Virtual Empresarial IA\n", page_icon="�
 # CSS personalizado para cambiar la fuente del título
 custom_css = """
 <style>
+
 h1 {
     font-family: 'Calibri', sans-serif;  /* Cambia 'Arial' por la fuente que desees */
     font-size: 46px;  /* Ajusta el tamaño de la fuente */
     color: #4B4B4B;  /* Cambia el color del texto */
     text-align: left;  /* Alineación del texto */
 }
+
 .custom-text {
     font-family: 'Calibri', sans-serif; /* Cambia 'Arial' por la fuente que desees */
     font-size: 28px; /* Ajusta el tamaño de la fuente */
     color: #333333; /* Cambia el color del texto */
     font-weight: bold; /* Hace el texto en negrita */
 }
+
+label[for="input_query"] {
+    font-weight: bold;
+    font-size: 1.3em; /* Aumenta ligeramente el tamaño del texto */
+    color: #333; /* Color gris oscuro para el texto */
+}
+
 </style>
 """
 

@@ -51,17 +51,38 @@ def get_relevant_texts(indexes_relevant, metadata):
 # Sexto y solo con el fin de resaltar en negrita las palabras comunes entre el contexto y la respuesta, se utiliza la funcion highlight_common_words, despues esta funcion desaparece
 # Septimo se muestra la respuesta resaltada en streamlit
 # Ultimo se muestra los textos de los metadatos resaltando las palabras de la respuesta utilizando display_highlighted_text.
-def search_and_display_results(query, index, metadata):
+def search_and_display_results(query, index, metadata, selected_style):
     indices = search_embeddings(query, index)
     relevant_texts = get_relevant_texts(indices, metadata)
     context = "\n".join(relevant_texts)
+
+    # Opciones para el estilo de respuesta
+    # style_options = [
+    #     "Responde de manera formal y profesional.",
+    #     "Responde con un tono amigable y casual.",
+    #     "Responde en formato de lista.",
+    #     "Responde de manera breve y concisa.",
+    #     "Responde en inglés.",
+    #     "Responde de manera detallada y extensa.",
+    # ]
+
+    #  # Crear el combo box para que el usuario seleccione el estilo de respuesta
+    # selected_style = st.selectbox("Selecciona el estilo de respuesta:", style_options)
+
+    # Construir el prompt con la instrucción específica
+    system_prompt = (
+        f"Contexto: {context}\n\n"
+        f"{selected_style}"
+    )
+
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": f"Contexto: {context}"},
+            # {"role": "system", "content": f"Contexto: {context}"},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": query}
         ],
-        max_tokens=400
+        max_tokens=800
     )
     raw_response = response.choices[0].message.content.strip()
     # highlighted_response = highlight_common_words(context, raw_response)
