@@ -20,17 +20,18 @@ def display_logout_button():
             position: fixed;
             top: 60px;
             right: 20px;
-            background-color: #ff4b4b;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            z-index: 1000;
-            border: none;
+            background-color: white; /* Fondo blanco */
+            color: black; /* Letra negra */
+            border-radius: 8px; /* Bordes redondeados */
+            padding: 5px 10px; /* Espaciado interno del botón */
+            font-size: 16px; /* Tamaño del texto */
+            border: 1px solid #d3d3d3; /* Borde gris */
+            transition: 0.1s; /* Transición suave para hover */
         }
         .logout-button:hover {
-            background-color: #ff3333;
+            background-color: white; /* Mantener fondo blanco al pasar el cursor */
+            color: red; /* Letra roja al pasar el cursor */
+            border: 1px solid red; /* Borde rojo al pasar el cursor */
         }
         </style>
         <form action="?logout=true" method="get">

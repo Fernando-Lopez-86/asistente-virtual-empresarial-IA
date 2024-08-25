@@ -28,11 +28,19 @@ def get_relevant_texts(indexes_relevant, metadata):
     texts = []
     for idx in indexes_relevant[0]:
         for file_id, file_info in metadata.items():
-            start_idx = file_info['embedding_start_idx']
-            end_idx = file_info['embedding_end_idx']
-            if start_idx <= idx < end_idx:
-                texts.append(file_info['text'])
-                break
+            if st.session_state['role'] == 'admin':
+                start_idx = file_info['embedding_start_idx']
+                end_idx = file_info['embedding_end_idx']
+                if start_idx <= idx < end_idx:
+                    texts.append(file_info['text'])
+                    break
+            else:
+                if file_info['category'] == st.session_state.get('role') or file_info['category'] == 'General':
+                    start_idx = file_info['embedding_start_idx']
+                    end_idx = file_info['embedding_end_idx']
+                    if start_idx <= idx < end_idx:
+                        texts.append(file_info['text'])
+                        break
     return texts
 
 # Esta es funcion principal en el proceso de busqueda de los embeddings relevantes, obteniendo los textos y mostrando la respuesta generada por el modelo de lenguaje de OpenAI junto con el contexto resaltado

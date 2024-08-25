@@ -1,74 +1,132 @@
 import streamlit as st
 from modules.files import delete_file, handle_file_upload
 
+# def display_uploaded_files(index, metadata, role):
+#     st.sidebar.title("Documentos Subidos 📄")
+#     files_to_delete = []
+
+#     for file_id, file_info in metadata.items():
+#         if file_info['file_name'] not in st.session_state.get("files_to_delete", []):
+#             col1, col2 = st.sidebar.columns([0.5, 0.5])
+#             col1.write(file_info['file_name'])
+#             if col2.button('❌', key=file_id):
+#                 files_to_delete.append((file_id, file_info))
+
+#     for file_id, file_info in files_to_delete:
+#         delete_file(file_id, file_info, index, metadata)
 
 
 def display_app_content():
     if st.session_state.get('logged_in'):
-        st.sidebar.title("Subir Archivos")
+        if st.session_state['role'] == 'admin':
+            st.sidebar.title("Subir Documentos 📤")
 
-        # Inicializar los checkboxes
-        if 'General' not in st.session_state:
-            st.session_state['General'] = False
-        if 'Administracion' not in st.session_state:
-            st.session_state['Administracion'] = False
-        if 'Produccion' not in st.session_state:
-            st.session_state['Produccion'] = False
-        if 'Laboratorio' not in st.session_state:
-            st.session_state['Laboratorio'] = False
+            st.sidebar.markdown(
+                "1. Seleccionar la categoria del documento\n"
+                "2. Subir el documento pdf, docx, xlsx\n"
+            )
 
-        # Checkbox para cada categoría
-        general = st.sidebar.checkbox('General', key='General')
-        administracion = st.sidebar.checkbox('Administracion', key='Administracion')
-        produccion = st.sidebar.checkbox('Produccion', key='Produccion')
-        laboratorio = st.sidebar.checkbox('Laboratorio', key='Laboratorio')
-        
+            # Inicializar los checkboxes
+            if 'General' not in st.session_state:
+                st.session_state['General'] = False
+            if 'Administracion' not in st.session_state:
+                st.session_state['Administracion'] = False
+            if 'Produccion' not in st.session_state:
+                st.session_state['Produccion'] = False
+            if 'Laboratorio' not in st.session_state:
+                st.session_state['Laboratorio'] = False
 
-        # Determinar la categoría seleccionada
-        selected_category = None
-        if general:
-            selected_category = 'General'
-        elif administracion:
-            selected_category = 'Administracion'
-        elif produccion:
-            selected_category = 'Produccion'
-        elif laboratorio:
-            selected_category = 'Laboratorio'
+            # Crear dos columnas
+            col1, col2 = st.sidebar.columns(2)
+
+            # Colocar los checkboxes en las dos columnas
+            with col1:
+                general = st.checkbox('General', key='General')
+                produccion = st.checkbox('Produccion', key='Produccion')
+            with col2:
+                administracion = st.checkbox('Administracion', key='Administracion')
+                laboratorio = st.checkbox('Laboratorio', key='Laboratorio')
+
+            
+
+            # Determinar la categoría seleccionada
+            selected_category = None
+            if general:
+                selected_category = 'General'
+            elif administracion:
+                selected_category = 'Administracion'
+            elif produccion:
+                selected_category = 'Produccion'
+            elif laboratorio:
+                selected_category = 'Laboratorio'
 
 
-        uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx', 'xlsx'], key=st.session_state.get("file_uploader_key", 0), label_visibility="hidden")
+            uploaded_file = st.sidebar.file_uploader("Elige un archivo", type=['pdf', 'docx', 'xlsx'], key=st.session_state.get("file_uploader_key", 0), label_visibility="hidden")
 
-        from modules.files import handle_file_upload
-        from modules.search import search_and_display_results
-        from modules.embeddings import init_faiss_index
-        from modules.ui import display_uploaded_files, display_embeddings
 
-        index, metadata = init_faiss_index()
+            from modules.files import handle_file_upload
+            from modules.search import search_and_display_results
+            from modules.embeddings import init_faiss_index
+            # from modules.ui import display_uploaded_files, display_embeddings
 
-        if uploaded_file is not None:
-            if not selected_category:
-                st.sidebar.error("Debe seleccionar una categoría antes de subir el archivo.")
-            else:
-                if uploaded_file and uploaded_file.name not in st.session_state.get("uploaded_files", []):
-                    handle_file_upload(uploaded_file, index, metadata, selected_category)
-                    st.session_state["uploaded_files"].append(uploaded_file.name)
+            index, metadata = init_faiss_index()
 
-                    # Resetea los checkboxes después de la subida
-                    # reset_checkboxes()
+            if uploaded_file is not None:
+                if not selected_category:
+                    st.sidebar.error("Debe seleccionar una categoría antes de subir el archivo.")
+                else:
+                    if uploaded_file and uploaded_file.name not in st.session_state.get("uploaded_files", []):
+                        handle_file_upload(uploaded_file, index, metadata, selected_category)
+                        # st.session_state["uploaded_files"].append(uploaded_file.name)
 
-                    # Forzar una actualización del estado sin recargar la página
-                    st.sidebar.checkbox('General', key='General', value=st.session_state['General'])
-                    st.sidebar.checkbox('Administracion', key='Administracion', value=st.session_state['Administracion'])
-                    st.sidebar.checkbox('Produccion', key='Produccion', value=st.session_state['Produccion'])
-                    st.sidebar.checkbox('Laboratorio', key='Laboratorio', value=st.session_state['Laboratorio'])
 
-        
-        # if uploaded_file and uploaded_file.name not in st.session_state.get("uploaded_files", []):
-        #     handle_file_upload(uploaded_file, index, metadata, category)
+            st.sidebar.markdown("---")
+            # Llamar a la función display_uploaded_files
+            # display_uploaded_files(index, metadata, st.session_state['role'])
 
-        display_uploaded_files(index, metadata)
+            st.sidebar.title("Documentos Subidos 📄")
+            files_to_delete = []
+            for file_id, file_info in metadata.items():
+                if st.session_state['role'] == 'admin':
+                    if file_info['file_name'] not in st.session_state.get("files_to_delete", []):
+                        col1, col2 = st.sidebar.columns([0.5, 0.5])
+                        col1.write(file_info['file_name'])
+                        if col2.button('❌', key=file_id):
+                            files_to_delete.append((file_id, file_info))
+            for file_id, file_info in files_to_delete:
+                delete_file(file_id, file_info, index, metadata)
 
-        st.title("Asistente Virtual Empresarial IA")
+
+
+        else:
+            from modules.files import handle_file_upload
+            from modules.search import search_and_display_results
+            from modules.embeddings import init_faiss_index
+            # from modules.ui import display_uploaded_files, display_embeddings
+
+            index, metadata = init_faiss_index()
+            # display_uploaded_files(index, metadata, st.session_state['role'])
+            # display_uploaded_files(index, metadata)
+            st.sidebar.title("Documentos Subidos 📄")
+            files_to_delete = []
+            for file_id, file_info in metadata.items():
+                if file_info['category'] == st.session_state.get('role') or file_info['category'] == 'General':
+                    if file_info['file_name'] not in st.session_state.get("files_to_delete", []):
+                        # col1, col2 = st.sidebar.columns([0.5, 0.5])
+                        # col1.write(file_info['file_name'])
+                        st.sidebar.write(file_info['file_name'])
+                        # if col2.button('❌', key=file_id):
+                        #     files_to_delete.append((file_id, file_info))
+
+            for file_id, file_info in files_to_delete:
+                delete_file(file_id, file_info, index, metadata)
+
+
+
+
+
+
+        st.title("🔎 Asistente Virtual Empresarial IA")
         query = st.text_input("Pregunta:")
 
         if st.button("Buscar"):
@@ -78,18 +136,10 @@ def display_app_content():
     else:
         st.write("Debe iniciar sesión para ver el contenido.")
 
-def display_uploaded_files(index, metadata):
-    st.sidebar.title("Documentos Subidos")
-    files_to_delete = []
-    for file_id, file_info in metadata.items():
-        if file_info['file_name'] not in st.session_state.get("files_to_delete", []):
-            col1, col2 = st.sidebar.columns([0.5, 0.5])
-            col1.write(file_info['file_name'])
-            if col2.button('❌', key=file_id):
-                files_to_delete.append((file_id, file_info))
-    
-    for file_id, file_info in files_to_delete:
-        delete_file(file_id, file_info, index, metadata)
+
+
+
+
 
 
 def display_embeddings(metadata, index):

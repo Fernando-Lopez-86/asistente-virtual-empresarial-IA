@@ -6,21 +6,29 @@ from modules.database import create_database
 from login.session_management import initialize_session, is_logged_in, display_logout_button
 from login.login import display_login_form
 
-# CSS avanzado para cambiar el color de fondo y la barra lateral
+st.set_page_config(page_title="Asistente Virtual Empresarial IA\n", page_icon="🔎", layout="centered")
+
+# CSS personalizado para cambiar la fuente del título
 custom_css = """
 <style>
-body {
-    background-color: #2E2E6E; /* Fondo de la página */
-    color: #FFFFFF; /* Color del texto */
+h1 {
+    font-family: 'Calibri', sans-serif;  /* Cambia 'Arial' por la fuente que desees */
+    font-size: 46px;  /* Ajusta el tamaño de la fuente */
+    color: #4B4B4B;  /* Cambia el color del texto */
+    text-align: left;  /* Alineación del texto */
 }
-.sidebar .sidebar-content {
-    background-color: #4B4B4B; /* Fondo de la barra lateral */
+.custom-text {
+    font-family: 'Calibri', sans-serif; /* Cambia 'Arial' por la fuente que desees */
+    font-size: 28px; /* Ajusta el tamaño de la fuente */
+    color: #333333; /* Cambia el color del texto */
+    font-weight: bold; /* Hace el texto en negrita */
 }
 </style>
 """
 
 # Aplica el CSS usando st.markdown
 st.markdown(custom_css, unsafe_allow_html=True)
+
 
 # Cargar variables de entorno
 load_config()
@@ -39,7 +47,8 @@ if not is_logged_in():
     user = display_login_form()
     if user:
         st.session_state['logged_in'] = True
-        # st.session_state['username'] = user  # Guarda el nombre de usuario en la sesión
+        st.session_state['username'] = user  
+        st.session_state['role'] = user[3]
         st.rerun()
 else:
     display_logout_button()
