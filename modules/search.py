@@ -1,91 +1,74 @@
 import streamlit as st
 from modules.embeddings import create_embeddings
-from modules.ui import highlight_common_words, display_highlighted_text
-from openai import OpenAI
 import os
+import numpy as np
+from openai import OpenAI
 
-# Obtener la API key desde las variables de entorno
-client = OpenAI(
-     api_key=os.getenv('OPENAI_API_KEY'),
-)
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
-# Función donde se le envia la pregunta y un índice FAISS, y devuelve los indices de los vectores de embeddings mas similares a la pregunta en el indice FAISS
-# Primero, el texto de la pregunta la transforma en embeddings utilizando la función create_embeddings
-# Segundo, utiliza el metodo search del índice FAISS para encontrar los 5 (k=5) embeddings más similares a los embeddings de la pregunta. Ver de agregar campo para modificar temperatura k
-# Devuelve los índices de los embeddings mas similares.
 def search_embeddings(query, index):
-    query_embeddings = create_embeddings(query)
-    distances, indexes_relevant = index.search(query_embeddings, k=5)
+    query_embedding = create_embeddings([query])[0]
+    distances, indexes_relevant = index.search(np.array(query_embedding).reshape(1, -1), k=5)
     return indexes_relevant
 
-# Funcion para tomar los indices de los embeddings mas similares y el diccionario de metadatos, y devuelve los textos correspondientes a esos embeddings
-# Inicializa una lista vacia de nombre texts
-# Se itera sobre los indices relevantes devueltos por la funcion search_embeddings
-# Para cada indice se busca el rango de embeddings en los metadatos
-# Si el indice esta dentro del rango de embeddings de un archivo, agrega el texto de ese archivo a la lista texts
-# Devuelve la lista de textos relevantes.
+def get_relevant_texts2(indexes_relevant, metadata):
+    texts = set()  # Usamos un set para evitar duplicados
+    for idx in indexes_relevant[0]:  # Recorremos los índices relevantes devueltos por FAISS
+        for file_id, file_info in metadata.items():
+            start_idx = file_info['embedding_start_idx']
+            end_idx = file_info['embedding_end_idx']
+            if start_idx <= idx < end_idx:  # Verifica si el índice está dentro del rango del archivo
+                chunk_idx = idx - start_idx  # Calcula el índice del fragmento relevante
+                texts.add(file_info['text_chunks'][chunk_idx])  # Añade solo el fragmento relevante
+                break  # Salimos del bucle al encontrar el fragmento
+    return list(texts)  # Convertimos el set a lista para mantener compatibilidad
+
 def get_relevant_texts(indexes_relevant, metadata):
     texts = []
     for idx in indexes_relevant[0]:
         for file_id, file_info in metadata.items():
-            if st.session_state['role'] == 'admin':
-                start_idx = file_info['embedding_start_idx']
-                end_idx = file_info['embedding_end_idx']
-                if start_idx <= idx < end_idx:
-                    texts.append(file_info['text'])
-                    break
-            else:
-                if file_info['category'] == st.session_state.get('role') or file_info['category'] == 'General':
-                    start_idx = file_info['embedding_start_idx']
-                    end_idx = file_info['embedding_end_idx']
-                    if start_idx <= idx < end_idx:
-                        texts.append(file_info['text'])
-                        break
+            if file_info["embedding_start_idx"] <= idx < file_info["embedding_end_idx"]:
+                relative_idx = idx - file_info["embedding_start_idx"]
+                texts.append(file_info["text_chunks"][relative_idx])
+                break
     return texts
 
-# Esta es funcion principal en el proceso de busqueda de los embeddings relevantes, obteniendo los textos y mostrando la respuesta generada por el modelo de lenguaje de OpenAI junto con el contexto resaltado
-# Primero se ejecuta la funcion search_embeddings para obtener los indices de los embeddings mas similares a la pregunta
-# Segundo se ejecuta la funcion get_relevant_texts para obtener los textos correspondientes a los indices que devuelve la funcion search_embeddings
-# Tercero se almacenan los textos relevantes en una sola cadena de nombre context
-# Cuarto se ejecuta una consulta a la API de OpenIA enviandole el contexto y la pregunta para obtener una respuesta
-# Sexto y solo con el fin de resaltar en negrita las palabras comunes entre el contexto y la respuesta, se utiliza la funcion highlight_common_words, despues esta funcion desaparece
-# Septimo se muestra la respuesta resaltada en streamlit
-# Ultimo se muestra los textos de los metadatos resaltando las palabras de la respuesta utilizando display_highlighted_text.
 def search_and_display_results(query, index, metadata, selected_style):
     indices = search_embeddings(query, index)
     relevant_texts = get_relevant_texts(indices, metadata)
+
+    
+    
     context = "\n".join(relevant_texts)
 
-    # Opciones para el estilo de respuesta
-    # style_options = [
-    #     "Responde de manera formal y profesional.",
-    #     "Responde con un tono amigable y casual.",
-    #     "Responde en formato de lista.",
-    #     "Responde de manera breve y concisa.",
-    #     "Responde en inglés.",
-    #     "Responde de manera detallada y extensa.",
-    # ]
+    
 
-    #  # Crear el combo box para que el usuario seleccione el estilo de respuesta
-    # selected_style = st.selectbox("Selecciona el estilo de respuesta:", style_options)
-
-    # Construir el prompt con la instrucción específica
     system_prompt = (
         f"Contexto: {context}\n\n"
+        f"Si la informacion de context es nula o vacia, pide disculpas y no contestes nada por favor\n\n"
+        f"Si no tienes suficiente informacion de context, pide disculpas y no contestes nada por favor\n\n"
         f"{selected_style}"
     )
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            # {"role": "system", "content": f"Contexto: {context}"},
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query}
         ],
         max_tokens=800
     )
-    raw_response = response.choices[0].message.content.strip()
-    # highlighted_response = highlight_common_words(context, raw_response)
-    # st.write(highlighted_response, unsafe_allow_html=True)
-    # display_highlighted_text(metadata, raw_response)
-    st.write(raw_response, unsafe_allow_html=True)
+    st.write(response.choices[0].message.content.strip(), unsafe_allow_html=True)
+
+
+    with st.expander("#### Contexto enviado a la API de OpenAI"):
+        st.write(context)
+
+        st.markdown("#### Embeddings Relevantes y Representaciones Vectoriales:")
+        for idx, text in zip(indices[0], relevant_texts):
+            # Recuperar el vector almacenado en FAISS para cada índice
+            embedding_vector = index.reconstruct(int(idx))
+            st.markdown(f"**Embedding #{idx}:**")
+            st.write(text)  # Mostrar el texto relevante
+            st.markdown("**Vector Representacional:**")
+            st.code(embedding_vector.tolist())  # Mostrar el vector como lista
