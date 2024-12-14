@@ -6,50 +6,61 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
-def search_embeddings(query, index):
+# Búsqueda de embeddings con FAISS
+def search_embeddings(query, index, k=5, threshold=1.015):
+    """
+    Busca los k embeddings más cercanos en el índice FAISS.
+    Filtra los resultados según un umbral de distancia para mejorar la relevancia.
+    """
+    # Generar embedding de la consulta
     query_embedding = create_embeddings([query])[0]
-    distances, indexes_relevant = index.search(np.array(query_embedding).reshape(1, -1), k=5)
-    return indexes_relevant
 
-def get_relevant_texts2(indexes_relevant, metadata):
-    texts = set()  # Usamos un set para evitar duplicados
-    for idx in indexes_relevant[0]:  # Recorremos los índices relevantes devueltos por FAISS
-        for file_id, file_info in metadata.items():
-            start_idx = file_info['embedding_start_idx']
-            end_idx = file_info['embedding_end_idx']
-            if start_idx <= idx < end_idx:  # Verifica si el índice está dentro del rango del archivo
-                chunk_idx = idx - start_idx  # Calcula el índice del fragmento relevante
-                texts.add(file_info['text_chunks'][chunk_idx])  # Añade solo el fragmento relevante
-                break  # Salimos del bucle al encontrar el fragmento
-    return list(texts)  # Convertimos el set a lista para mantener compatibilidad
+    # Buscar en FAISS
+    distances, indices = index.search(np.array([query_embedding]), k=k)
 
-def get_relevant_texts(indexes_relevant, metadata):
+    # Filtrar por umbral de distancia
+    filtered_indices = [idx for dist, idx in zip(distances[0], indices[0]) if dist <= threshold]
+    return filtered_indices
+
+# Recuperar textos relevantes basados en los índices devueltos por FAISS
+def get_relevant_texts(filtered_indices, metadata):
+    """
+    Recupera los textos relevantes a partir de los índices filtrados.
+    """
     texts = []
-    for idx in indexes_relevant[0]:
+    for idx in filtered_indices:
         for file_id, file_info in metadata.items():
-            if file_info["embedding_start_idx"] <= idx < file_info["embedding_end_idx"]:
-                relative_idx = idx - file_info["embedding_start_idx"]
-                texts.append(file_info["text_chunks"][relative_idx])
+            if file_info['embedding_start_idx'] <= idx < file_info['embedding_end_idx']:
+                relative_idx = idx - file_info['embedding_start_idx']
+                texts.append(file_info['text_chunks'][relative_idx])
                 break
     return texts
 
-def search_and_display_results(query, index, metadata, selected_style):
-    indices = search_embeddings(query, index)
-    relevant_texts = get_relevant_texts(indices, metadata)
+# Función principal para realizar la búsqueda y mostrar resultados
+def search_and_display_results(query, index, metadata, selected_style, k=5, threshold=1.015):
+    """
+    Realiza la búsqueda semántica y muestra los resultados en la interfaz de usuario.
+    """
+    # Búsqueda de embeddings
+    filtered_indices = search_embeddings(query, index, k=k, threshold=threshold)
 
-    
-    
+    # Recuperar textos relevantes
+    relevant_texts = get_relevant_texts(filtered_indices, metadata)
+
+    # Construir el contexto a partir de los textos relevantes
     context = "\n".join(relevant_texts)
 
-    
-
+    # Generar el prompt del sistema
     system_prompt = (
         f"Contexto: {context}\n\n"
-        f"Si la informacion de context es nula o vacia, pide disculpas y no contestes nada por favor\n\n"
-        f"Si no tienes suficiente informacion de context, pide disculpas y no contestes nada por favor\n\n"
+        "Eres un asistente inteligente que responde únicamente en base al contexto proporcionado. "
+        "Si el contexto es nulo, vacío o contiene información insuficiente para responder la pregunta, pide disculpas de manera breve y no intentes proporcionar ninguna respuesta adicional. "
+        "Por ejemplo, si no puedes responder, di: 'Lo siento, no puedo proporcionar una respuesta con la información disponible.' "
+        "No inventes ni supongas información fuera del contexto proporcionado. Responde únicamente basándote en los datos proporcionados."
         f"{selected_style}"
     )
 
+    # Consultar la API de OpenAI
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -58,14 +69,16 @@ def search_and_display_results(query, index, metadata, selected_style):
         ],
         max_tokens=800
     )
+
+    # Mostrar la respuesta generada
     st.write(response.choices[0].message.content.strip(), unsafe_allow_html=True)
 
-
+    # Mostrar contexto y embeddings relevantes en un expander
     with st.expander("#### Contexto enviado a la API de OpenAI"):
         st.write(context)
 
         st.markdown("#### Embeddings Relevantes y Representaciones Vectoriales:")
-        for idx, text in zip(indices[0], relevant_texts):
+        for idx, text in zip(filtered_indices, relevant_texts):
             # Recuperar el vector almacenado en FAISS para cada índice
             embedding_vector = index.reconstruct(int(idx))
             st.markdown(f"**Embedding #{idx}:**")

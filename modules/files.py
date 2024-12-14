@@ -6,7 +6,7 @@ import docx
 import pandas as pd
 import fitz
 import re
-from modules.embeddings import create_embeddings, faiss_index_path, metadata_file, split_text_into_chunks, split_text_into_chunks_by_characters, split_text_spacy
+from modules.embeddings import create_embeddings, faiss_index_path, metadata_file, dimension, split_text_into_chunks, split_text_into_chunks_by_characters, split_text_spacy
 import faiss
 import numpy as np
 import unicodedata
@@ -66,7 +66,8 @@ def handle_file_upload(uploaded_file, index, metadata):
         text = clean_text(text)
         # chunks = split_text_into_chunks(text, chunk_size=200)
         # chunks = split_text_into_chunks_by_characters(text, max_chars=200)
-        chunks = split_text_spacy(text, chunk_size=75)
+        # chunks = split_text_spacy(text, chunk_size=75)
+        chunks = split_text_spacy(text, max_sentences=3, max_chars=500)
 
         # Generar embeddings y añadir al índice FAISS
         chunk_embeddings = create_embeddings(chunks)
@@ -87,27 +88,56 @@ def handle_file_upload(uploaded_file, index, metadata):
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f)
 
-        st.session_state["uploaded_files"].append(uploaded_file.name)
+        st.session_state["uploaded_files"] = uploaded_file.name
     except Exception as e:
         st.error(f"Error al subir el archivo: {str(e)}")
 
+# def delete_file(file_id, file_info, index, metadata):
+#     try:
+#         current_query = st.session_state.get("input_query", "")
+
+#         start_idx = file_info['embedding_start_idx']
+#         end_idx = file_info['embedding_end_idx']
+
+#         ids_to_remove = np.arange(start_idx, end_idx, dtype=np.int64)
+#         index.remove_ids(ids_to_remove)
+#         faiss.write_index(index, faiss_index_path)
+
+#         del metadata[file_id]
+
+#         with open(metadata_file, 'w') as f:
+#             json.dump(metadata, f)
+
+#         file_path = os.path.join("data/files", file_info['file_name'])
+#         if os.path.exists(file_path):
+#             os.remove(file_path)
+
+
+#         if file_info['file_name'] in st.session_state['uploaded_files']:
+#             st.session_state['uploaded_files'].remove(file_info['file_name'])
+
+#         st.session_state["file_uploader_key"] += 1
+
+#         st.session_state["input_query"] = current_query
+#         st.rerun()
+
+#     except Exception as e:
+#         st.error(f"Error al eliminar el archivo: {str(e)}")
+
 def delete_file(file_id, file_info, index, metadata):
-    import os
-    import json
-    import numpy as np
-    from modules.embeddings import faiss_index_path, metadata_file
-
     try:
-        start_idx = file_info['embedding_start_idx']
-        end_idx = file_info['embedding_end_idx']
+        current_query = st.session_state.get("input_query", "")
 
-        # Eliminar embeddings del índice FAISS
-        ids_to_remove = np.arange(start_idx, end_idx, dtype=np.int64)
-        index.remove_ids(ids_to_remove)
-        faiss.write_index(index, faiss_index_path)
-
-        # Actualizar el archivo de metadatos
+        # Eliminar el archivo del metadata
         del metadata[file_id]
+
+        # Renumerar los metadatos
+        renumber_metadata(metadata)
+
+        # Reconstruir el índice FAISS
+        index = rebuild_faiss_index(metadata)
+
+        # Guardar los metadatos actualizados
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f)
 
@@ -117,7 +147,49 @@ def delete_file(file_id, file_info, index, metadata):
             os.remove(file_path)
 
         # Actualizar el estado de la sesión
+        if "uploaded_files" in st.session_state and file_info["file_name"] in st.session_state["uploaded_files"]:
+            st.session_state["uploaded_files"].remove(file_info["file_name"])
+
+        # Forzar la recarga del file_uploader
         st.session_state["file_uploader_key"] += 1
+
+        st.session_state["input_query"] = current_query
+
+        st.rerun()
 
     except Exception as e:
         st.error(f"Error al eliminar el archivo: {str(e)}")
+
+def renumber_metadata(metadata):
+    """
+    Renumera los índices de embeddings en metadata.json después de eliminar un archivo.
+    :param metadata: Diccionario con los metadatos actuales.
+    """
+    current_idx = 0  # Índice inicial
+    for file_info in metadata.values():
+        num_embeddings = file_info["embedding_end_idx"] - file_info["embedding_start_idx"]
+        file_info["embedding_start_idx"] = current_idx
+        file_info["embedding_end_idx"] = current_idx + num_embeddings
+        current_idx += num_embeddings
+
+def rebuild_faiss_index(metadata):
+    """
+    Reconstruye el índice FAISS desde los embeddings almacenados en los metadatos.
+    :param metadata: Diccionario con los metadatos actuales.
+    :return: Índice FAISS reconstruido.
+    """
+    # Crear un nuevo índice FAISS
+    index = faiss.IndexFlatL2(dimension)
+    all_embeddings = []
+
+    for file_info in metadata.values():
+        text_chunks = file_info["text_chunks"]
+        chunk_embeddings = create_embeddings(text_chunks)
+        all_embeddings.extend(chunk_embeddings)
+
+    if all_embeddings:
+        index.add(np.array(all_embeddings, dtype=np.float32))
+
+    # Guardar el índice reconstruido
+    faiss.write_index(index, faiss_index_path)
+    return index

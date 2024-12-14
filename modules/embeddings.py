@@ -16,25 +16,63 @@ chunk_size = 75
 max_chars=200
 
 # Divide el texto en fragmentos coherentes utilizando spaCy.
-def split_text_spacy(text, chunk_size=75):
-    doc = nlp(text)
-    sentences = [sent.text for sent in doc.sents]
+# def split_text_spacy(text, chunk_size=75):
+#     doc = nlp(text)
+#     sentences = [sent.text for sent in doc.sents]
+#     chunks = []
+#     current_chunk = []
+#     current_length = 0
+
+#     for sentence in sentences:
+#         words_in_sentence = len(sentence.split())
+#         if current_length + words_in_sentence > chunk_size:
+#             chunks.append(" ".join(current_chunk))
+#             current_chunk = []
+#             current_length = 0
+#         current_chunk.append(sentence)
+#         current_length += words_in_sentence
+
+#     if current_chunk:
+#         chunks.append(" ".join(current_chunk))
+#     return chunks
+
+def split_text_spacy(text, max_sentences=5, max_chars=1000):
+    """
+    Divide el texto en fragmentos dinámicos utilizando spaCy, priorizando la coherencia semántica.
+    Se generan fragmentos basados en un número máximo de oraciones o un límite de caracteres.
+    
+    :param text: Texto a dividir.
+    :param max_sentences: Número máximo de oraciones por fragmento.
+    :param max_chars: Número máximo de caracteres por fragmento.
+    :return: Lista de fragmentos dinámicos.
+    """
+    doc = nlp(text)  # Procesar el texto con spaCy
+    sentences = [sent.text.strip() for sent in doc.sents]  # Dividir el texto en oraciones
     chunks = []
     current_chunk = []
-    current_length = 0
+    current_length_chars = 0
 
     for sentence in sentences:
-        words_in_sentence = len(sentence.split())
-        if current_length + words_in_sentence > chunk_size:
+        chars_in_sentence = len(sentence)
+
+        # Comprobar si agregar esta oración excede el límite de caracteres o de oraciones
+        if (len(current_chunk) >= max_sentences or
+                current_length_chars + chars_in_sentence > max_chars):
+            # Añadir el fragmento actual a la lista
             chunks.append(" ".join(current_chunk))
             current_chunk = []
-            current_length = 0
-        current_chunk.append(sentence)
-        current_length += words_in_sentence
+            current_length_chars = 0
 
+        # Añadir la oración al fragmento actual
+        current_chunk.append(sentence)
+        current_length_chars += chars_in_sentence
+
+    # Añadir el último fragmento si quedó algo pendiente
     if current_chunk:
         chunks.append(" ".join(current_chunk))
+
     return chunks
+
 
 def create_embeddings(text_chunks):
     # Genera embeddings para cada fragmento de texto.

@@ -8,7 +8,6 @@ from modules.database import create_database
 from login.session_management import initialize_session, is_logged_in, display_logout_button
 from login.login import display_login_form
 
-
 st.set_page_config(page_title="Asistente Virtual Empresarial IA\n", page_icon="🔎", layout="centered")
 
 # CSS personalizado para cambiar la fuente del título
