@@ -1,13 +1,15 @@
+
 import streamlit as st
 from modules.embeddings import create_embeddings
 import os
 import numpy as np
 from openai import OpenAI
 
+
+# Carga la clave de la API desde las variables de entorno. Esto permite autenticar solicitudes a OpenAI.
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
-# Búsqueda de embeddings con FAISS
-def search_embeddings(query, index, k=5, threshold=1.015):
+def search_embeddings(query, index, k=2, threshold=1):
     """
     Busca los k embeddings más cercanos en el índice FAISS.
     Filtra los resultados según un umbral de distancia para mejorar la relevancia.
@@ -18,11 +20,23 @@ def search_embeddings(query, index, k=5, threshold=1.015):
     # Buscar en FAISS
     distances, indices = index.search(np.array([query_embedding]), k=k)
 
+    # Filtrar por umbral de distancia   ## version anterior
+    # filtered_indices = [idx for dist, idx in zip(distances[0], indices[0]) if dist <= threshold]
+    # filtered_distances = [dist for dist in distances[0] if dist <= threshold]
+    # return filtered_distances, filtered_indices
     # Filtrar por umbral de distancia
-    filtered_indices = [idx for dist, idx in zip(distances[0], indices[0]) if dist <= threshold]
-    return filtered_indices
+    filtered_results = [
+        (dist, idx) for dist, idx in zip(distances[0], indices[0]) if dist <= threshold
+    ]
 
-# Recuperar textos relevantes basados en los índices devueltos por FAISS
+    # Ordenar los resultados por distancia (de menor a mayor)
+    filtered_results.sort(key=lambda x: x[0])  # Ordena por distancia
+
+    # Separar las distancias e índices después de ordenar
+    filtered_distances, filtered_indices = zip(*filtered_results) if filtered_results else ([], [])
+    return list(filtered_distances), list(filtered_indices)
+
+
 def get_relevant_texts(filtered_indices, metadata):
     """
     Recupera los textos relevantes a partir de los índices filtrados.
@@ -36,13 +50,13 @@ def get_relevant_texts(filtered_indices, metadata):
                 break
     return texts
 
-# Función principal para realizar la búsqueda y mostrar resultados
-def search_and_display_results(query, index, metadata, selected_style, k=5, threshold=1.015):
+
+def search_and_display_results(query, index, metadata, selected_style, k=2, threshold=1):
     """
     Realiza la búsqueda semántica y muestra los resultados en la interfaz de usuario.
     """
     # Búsqueda de embeddings
-    filtered_indices = search_embeddings(query, index, k=k, threshold=threshold)
+    filtered_distances, filtered_indices = search_embeddings(query, index, k=k, threshold=threshold)
 
     # Recuperar textos relevantes
     relevant_texts = get_relevant_texts(filtered_indices, metadata)
@@ -67,21 +81,35 @@ def search_and_display_results(query, index, metadata, selected_style, k=5, thre
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query}
         ],
-        max_tokens=800
+        max_tokens=1000
     )
 
     # Mostrar la respuesta generada
     st.write(response.choices[0].message.content.strip(), unsafe_allow_html=True)
 
     # Mostrar contexto y embeddings relevantes en un expander
-    with st.expander("#### Contexto enviado a la API de OpenAI"):
+    with st.expander("**Detalle**"):
+        st.markdown("##### Contexto enviado a la API de OpenAI:")
         st.write(context)
 
-        st.markdown("#### Embeddings Relevantes y Representaciones Vectoriales:")
-        for idx, text in zip(filtered_indices, relevant_texts):
+        st.markdown("##### Embeddings Relevantes y Textos Asociados:")
+        # for idx, text in zip(filtered_indices, relevant_texts):
+        for dist, idx, text in zip(filtered_distances, filtered_indices, relevant_texts):
             # Recuperar el vector almacenado en FAISS para cada índice
             embedding_vector = index.reconstruct(int(idx))
             st.markdown(f"**Embedding #{idx}:**")
             st.write(text)  # Mostrar el texto relevante
             st.markdown("**Vector Representacional:**")
             st.code(embedding_vector.tolist())  # Mostrar el vector como lista
+
+            # Mostrar la distancia entre el embedding de la pregunta y el embedding relevante
+            st.markdown(f"**Distancia a la consulta:** {dist:.4f}")
+
+
+# Resumen
+# Este código implementa un flujo completo para búsquedas semánticas:
+    # Convierte la consulta en un embedding.
+    # Busca los fragmentos más similares en un índice FAISS.
+    # Genera una respuesta utilizando la API de OpenAI.
+    # Muestra la respuesta junto con información relevante en la interfaz.
+# Si necesitas un análisis más profundo o ayuda con alguna parte específica, házmelo saber.

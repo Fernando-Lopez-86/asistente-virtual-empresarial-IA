@@ -1,0 +1,17 @@
+# Excluir entornos virtuales
+env/
+venv/
+
+# Excluir archivos de caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Excluir control de versiones
+.git/
+.gitignore
+
+# Excluir otros archivos innecesarios
+.DS_Store
+*.log
